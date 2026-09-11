@@ -1,0 +1,37 @@
+import "dotenv/config";
+import { z } from "zod";
+
+const envSchema = z.object({
+    DATABASE_URL: z.string().min(5, "DATABASE_URL is required"),
+
+    NODE_ENV: z
+        .enum(["development", "production", "test"])
+        .default("development"),
+
+    PORT: z.coerce.number().default(3000),
+
+    CLIENT_URL: z
+        .string()
+        .default("http://localhost:5173"),
+
+    ACCESS_TOKEN_SECRET: z
+        .string()
+        .min(5, "ACCESS_TOKEN_SECRET must be at least 5 characters"),
+
+    REFRESH_TOKEN_SECRET: z
+        .string()
+        .min(5, "REFRESH_TOKEN_SECRET must be at least 5 characters"),
+});
+
+const parsedEnv = envSchema.safeParse(process.env);
+
+if (!parsedEnv.success) {
+    console.error(
+        "Invalid environment configuration:",
+        parsedEnv.error.flatten()
+    );
+
+    throw new Error("Invalid environment configuration");
+}
+
+export const env = parsedEnv.data;
