@@ -6,7 +6,7 @@ import { registerService, loginService, refreshService, logoutService } from "./
 
 export const register = async (req: Request, res: Response) => {
     const user = await registerService(req.body);
-    res.status(201).json({
+    return res.status(201).json({
         user,
     });
 };
@@ -14,17 +14,16 @@ export const register = async (req: Request, res: Response) => {
 export const login = async (req: Request, res: Response) => {
     const { accessToken, refreshToken } = await loginService(req.body);
     setAuthCookies(res, refreshToken);
-    res.status(200).json({
+    return res.status(200).json({
         accessToken,
     });
 };
 
 export const refresh = async (req: Request, res: Response) => {
     const refreshToken = req.cookies[constants.REFRESH_COOKIE_NAME];
-
     const { accessToken, refreshToken: newRefreshToken } = await refreshService(refreshToken);
     setAuthCookies(res, newRefreshToken);
-    res.status(200).json({
+    return res.status(200).json({
         accessToken,
     });
 };
@@ -33,7 +32,7 @@ export const logout = async (req: Request, res: Response) => {
     const refreshToken = req.cookies[constants.REFRESH_COOKIE_NAME];
     await logoutService(refreshToken);
     clearAuthCookies(res);
-    res.status(200).json({
+    return res.status(200).json({
         message: "Logged out successfully.",
     });
 };
