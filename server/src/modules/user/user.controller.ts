@@ -7,9 +7,9 @@ export const updateUserRole = async (req: Request, res: Response) => {
     const user = await updateUserRoleService(
         req.user!.userId,
         userId,
-        req.body,
+        req.body
     );
     return res.status(200).json({
-        user,
+        user
     });
 };

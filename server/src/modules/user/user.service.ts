@@ -16,22 +16,22 @@ export const updateUserRoleService = async (requesterId: string, targetId: strin
             id: true,
             name: true,
             email: true,
-            role: true,
-        },
+            role: true
+        }
     });
     if (!targetUser)
     {
-        throw new NotFoundError("User not found.");
+        throw new NotFoundError("User not found");
     }
     if (targetUser.role === data.role)
     {
-        throw new ConflictError("User already has this role.");
+        throw new ConflictError("User already has this role");
     }
 
     return prisma.user.update({
         where: { id: targetId },
         data: {
-            role: data.role,
+            role: data.role
         },
         select: {
             id: true,
@@ -39,7 +39,7 @@ export const updateUserRoleService = async (requesterId: string, targetId: strin
             email: true,
             role: true,
             createdAt: true,
-            updatedAt: true,
+            updatedAt: true
         },
     });
 }

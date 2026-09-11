@@ -6,7 +6,8 @@ import { constants } from "../config/constants.js";
 import { env } from "../config/env.js";
 import { UnauthorizedError } from "../errors/errors.js";
 
-const isValidUserRole = (value: unknown): value is UserRole => {
+const isValidUserRole = (value: unknown): value is UserRole =>
+{
     return Object.values(UserRole).includes(value as UserRole);
 };
 

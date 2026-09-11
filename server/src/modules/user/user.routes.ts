@@ -10,6 +10,6 @@ import { updateUserRoleSchema } from "./user.validation.js";
 
 const router = Router({ mergeParams: true });
 
-router.patch( "/:userId/role", authenticate, checkRole(UserRole.ADMIN), validateBody(updateUserRoleSchema), asyncHandler(updateUserRole),);
+router.patch( "/:userId/role", authenticate, checkRole(UserRole.ADMIN), validateBody(updateUserRoleSchema), asyncHandler(updateUserRole));
 
 export default router;

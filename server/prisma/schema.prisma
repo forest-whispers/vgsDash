@@ -27,6 +27,7 @@ model User {
   role         UserRole @default(DEVELOPER)
 
   refreshTokens RefreshToken[]
+  projects      Project[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -46,4 +47,36 @@ model RefreshToken {
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+model Client {
+  id      String  @id @default(cuid())
+  name    String
+  email   String? @unique
+  company String?
+
+  projects Project[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
+}
+
+model Project {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Restrict)
+
+  managerId String
+  manager   User   @relation(fields: [managerId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([managerId])
 }

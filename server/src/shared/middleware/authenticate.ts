@@ -20,7 +20,7 @@ export const authenticate = (req: Request, _res: Response, next: NextFunction) =
         const decodedPayload = verifyAccessToken(token);
         req.user = {
             userId: decodedPayload.userId,
-            role: decodedPayload.role,
+            role: decodedPayload.role
         };
         next();
     } catch (error)
