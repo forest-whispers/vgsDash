@@ -12,7 +12,7 @@ import UsersPage from "../features/users/pages/UsersPage";
 import ClientsPage from "../features/clients/pages/ClientsPage";
 import DeveloperTasksPage from "../features/tasks/pages/DeveloperTasksPage";
 import ActivitiesPage from "../features/activities/pages/ActivitiesPage";
-import PlaceholderPage from "../shared/ui/PlaceholderPage";
+import DashboardPage from "../features/dashboard/pages/DashboardPage";
 import RootRedirect from "../shared/ui/RootRedirect";
 
 export const router = createBrowserRouter([
@@ -46,7 +46,7 @@ export const router = createBrowserRouter([
                 children: [
                     {
                         path: "/dashboard",
-                        element: <PlaceholderPage title="Dashboard" />,
+                        element: <DashboardPage />,
                     },
                     {
                         path: "/projects",

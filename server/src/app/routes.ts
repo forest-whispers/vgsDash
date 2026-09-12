@@ -7,6 +7,7 @@ import projectsRouter from "../modules/project/project.routes.js";
 import activitiesRouter from "../modules/activities/activities.routes.js";
 import notificationsRouter from "../modules/notifications/notifications.routes.js";
 import tasksRouter from "../modules/tasks/tasks.routes.js";
+import dashboardRouter from "../modules/dashboard/dashboard.routes.js";
 
 export const router = Router();
 
@@ -21,4 +22,5 @@ router.use("/clients", clientsRouter);
 router.use("/projects", projectsRouter);
 router.use("/activities", activitiesRouter);
 router.use("/notifications", notificationsRouter);
+router.use("/dashboard", dashboardRouter);
 router.use("/", tasksRouter);
