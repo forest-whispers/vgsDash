@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import morgan from "morgan";
 
 import { env } from "../shared/config/env.js";
 import { router } from "./routes.js";
@@ -13,6 +14,8 @@ app.use(cors({
     origin: env.CLIENT_URL,
     credentials: true
 }))
+
+app.use(morgan("dev"));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

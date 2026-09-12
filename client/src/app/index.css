@@ -1,0 +1,63 @@
+@import "tailwindcss";
+
+@layer components {
+    .btn {
+        @apply rounded-md px-4 py-2 text-sm font-medium transition;
+    }
+
+    .btn-primary {
+        @apply bg-blue-600 text-white hover:bg-blue-700;
+    }
+
+    .btn-secondary {
+        @apply border border-gray-300 bg-white text-gray-800 hover:bg-gray-50;
+    }
+
+    .btn-danger {
+        @apply bg-red-600 text-white hover:bg-red-700;
+    }
+
+        .badge {
+            @apply inline-flex rounded-full px-2.5 py-1 text-xs font-medium;
+        }
+    
+        .badge-default {
+            @apply bg-gray-100 text-gray-700;
+        }
+    
+        .badge-success {
+            @apply bg-green-100 text-green-700;
+        }
+    
+        .badge-warning {
+            @apply bg-yellow-100 text-yellow-700;
+        }
+    
+        .badge-danger {
+            @apply bg-red-100 text-red-700;
+        }
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+    min-height: 100%;
+}
+
+body {
+    margin: 0;
+    background: #f5f6f8;
+    color: #111827;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+button,
+input,
+textarea,
+select {
+    font: inherit;
+}

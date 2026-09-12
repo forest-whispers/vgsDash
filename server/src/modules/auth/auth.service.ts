@@ -7,7 +7,7 @@ import { comparePassword, hashPassword, } from "../../shared/lib/bcrypt.js";
 import { generateAccessToken, } from "../../shared/lib/jwt.js";
 import { hashToken, } from "../../shared/lib/hash.js";
 import { generateRefreshToken, } from "../../shared/lib/crypto.js";
-import type { AuthTokens, LoginDto, RegisterDto, } from "./auth.types.js";
+import type { AuthenticatedUser, AuthTokens, LoginDto, RegisterDto, } from "./auth.types.js";
 
 export const registerService = async ({ name, email, password }: RegisterDto) =>
 {
@@ -64,7 +64,8 @@ export const registerService = async ({ name, email, password }: RegisterDto) =>
     }
 };
 
-export const loginService = async ({ email, password }: LoginDto): Promise<AuthTokens> =>
+export const loginService = async ({ email, password }: LoginDto): Promise<AuthTokens &
+{ user: AuthenticatedUser }> =>
 {
     const user = await prisma.user.findUnique({
         where: { email }
@@ -97,12 +98,23 @@ export const loginService = async ({ email, password }: LoginDto): Promise<AuthT
 
     return {
         accessToken,
-        refreshToken
+        refreshToken,
+        user: {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+        }
     };
 };
 
-export const refreshService = async (refreshToken: string): Promise<AuthTokens> =>
+export const refreshService = async (refreshToken?: string): Promise<AuthTokens> =>
 {
+    if (!refreshToken)
+    {
+        throw new UnauthorizedError("Refresh token is required");
+    }
+
     const tokenHash = hashToken(refreshToken);
 
     const storedToken = await prisma.refreshToken.findUnique({

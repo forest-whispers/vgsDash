@@ -6,18 +6,19 @@ import { registerService, loginService, refreshService, logoutService, getMeServ
 
 export const register = async (req: Request, res: Response) =>
 {
-    const user = await registerService(req.body);
+    await registerService(req.body);
     return res.status(201).json({
-        user
+        message: "Registered successfully"
     });
 };
 
 export const login = async (req: Request, res: Response) =>
 {
-    const { accessToken, refreshToken } = await loginService(req.body);
+    const { accessToken, refreshToken, user } = await loginService(req.body);
     setAuthCookies(res, refreshToken);
     return res.status(200).json({
-        accessToken
+        accessToken,
+        user
     });
 };
 
