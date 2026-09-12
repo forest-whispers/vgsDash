@@ -1,7 +1,8 @@
 export type NotificationType =
     | "PROJECT_ASSIGNED"
     | "TASK_ASSIGNED"
-    | "TASK_IN_REVIEW";
+    | "TASK_IN_REVIEW"
+    | "TASK_OVERDUE";
 
 export interface NotificationMetadata {
     taskTitle?: string;

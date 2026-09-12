@@ -21,6 +21,11 @@ export const formatNotificationMessage = (
                 ? 'Task "' + metadata.taskTitle + '" is ready for review.'
                 : "A task was submitted for review.";
 
+        case "TASK_OVERDUE":
+            return metadata?.taskTitle
+                ? 'Task "' + metadata.taskTitle + '" is overdue.'
+                : "A task is overdue.";
+
         default:
             return "New notification: " + type;
     }

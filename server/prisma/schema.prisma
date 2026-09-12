@@ -193,6 +193,7 @@ enum NotificationType {
   PROJECT_ASSIGNED
   TASK_ASSIGNED
   TASK_IN_REVIEW
+  TASK_OVERDUE
 }
 
 model Notification {
