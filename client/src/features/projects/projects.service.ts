@@ -1,6 +1,5 @@
 import api from "../../lib/axios";
 import type {
-    ClientOption,
     CreateProjectData,
     Project,
     ProjectManagerOption,
@@ -40,10 +39,7 @@ export const abandonProject = async (projectId: string): Promise<Project> => {
     return response.data.project;
 };
 
-export const getClients = async (): Promise<ClientOption[]> => {
-    const response = await api.get<{ clients: ClientOption[] }>("/clients");
-    return response.data.clients;
-};
+export { getClients } from "../clients/clients.service";
 
 export const getProjectManagers = async (): Promise<ProjectManagerOption[]> => {
     const response = await api.get<{ users: ProjectManagerOption[] }>("/users", {

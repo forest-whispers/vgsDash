@@ -31,12 +31,8 @@ export interface UpdateProjectData {
     managerId?: string | null;
 }
 
-export interface ClientOption {
-    id: string;
-    name: string;
-    email?: string | null;
-    company?: string | null;
-}
+import type { Client } from "../clients/clients.types";
+export type ClientOption = Client;
 
 export interface ProjectManagerOption {
     id: string;
