@@ -85,7 +85,7 @@ export const markNotificationReadService = async ( user: AuthContext, notificati
         };
     }
 
-    const updatedNotification = prisma.notification.update({
+    const updatedNotification = await prisma.notification.update({
         where: {
             id: notificationId
         },
