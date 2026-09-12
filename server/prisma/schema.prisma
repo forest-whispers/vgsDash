@@ -34,6 +34,8 @@ model User {
   createdTasks  Task[] @relation("TaskCreator")
   assignedTasks Task[] @relation("TaskDeveloper")
 
+  activities Activity[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -90,6 +92,8 @@ model Project {
 
   tasks Task[]
 
+  activities Activity[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -130,6 +134,8 @@ model Task {
   createdById String
   createdBy   User   @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Restrict)
 
+  activities Activity[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -138,4 +144,39 @@ model Task {
   @@index([status])
   @@index([priority])
   @@index([dueDate])
+}
+
+enum ActivityType {
+  PROJECT_CREATED
+  PROJECT_UPDATED
+  PROJECT_ABANDONED
+  TASK_CREATED
+  TASK_UPDATED
+  TASK_ASSIGNED
+  TASK_REASSIGNED
+  TASK_UNASSIGNED
+  TASK_STATUS_CHANGED
+}
+
+model Activity {
+  id   String       @id @default(cuid())
+  type ActivityType
+
+  actorId String
+  actor   User   @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
+
+  taskId String?
+  task   Task?   @relation(fields: [taskId], references: [id], onDelete: Restrict)
+
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([projectId, createdAt])
+  @@index([taskId, createdAt])
+  @@index([actorId, createdAt])
+  @@index([type, createdAt])
 }

@@ -8,7 +8,7 @@ import { validate } from "../../shared/utils/validate.js";
 import * as tasksController from "./tasks.controller.js";
 import { assignTaskSchema, createTaskSchema, taskFiltersSchema, updateTaskSchema, updateTaskStatusSchema } from "./tasks.validation.js";
 
-const router = Router();
+const router = Router({ mergeParams: true });
 
 router.use(authenticate);
 
