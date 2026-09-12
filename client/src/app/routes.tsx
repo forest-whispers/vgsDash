@@ -2,6 +2,7 @@ import { createBrowserRouter } from "react-router-dom";
 
 import PublicLayout from "../layouts/PublicLayout";
 import AuthenticatedLayout from "../layouts/AuthenticatedLayout";
+import ProjectLayout from "../layouts/ProjectLayout";
 import LoginPage from "../features/auth/pages/LoginPage";
 import RegisterPage from "../features/auth/pages/RegisterPage";
 import PublicOnlyRoute from "../features/auth/components/PublicOnlyRoute";
@@ -54,7 +55,13 @@ export const router = createBrowserRouter([
                     },
                     {
                         path: "/projects/:projectId",
-                        element: <ProjectDetailsPage />,
+                        element: <ProjectLayout />,
+                        children: [
+                            {
+                                index: true,
+                                element: <ProjectDetailsPage />,
+                            },
+                        ],
                     },
                     {
                         path: "/clients",

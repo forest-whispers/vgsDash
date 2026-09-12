@@ -6,6 +6,7 @@ import type { NotificationItem } from "../notifications.types";
 import { formatNotificationMessage } from "../utils/formatNotification";
 import Spinner from "../../../shared/ui/Spinner";
 import { getErrorMessage } from "../../../shared/utils/getErrorMessage";
+import { getSocket, SOCKET_EVENTS } from "../../../lib/socket";
 
 export default function NotificationDropdown() {
     const { user } = useAuth();
@@ -34,6 +35,33 @@ export default function NotificationDropdown() {
 
         return () => {
             isMounted = false;
+        };
+    }, []);
+
+    // Listen for realtime notification events
+    useEffect(() => {
+        const socket = getSocket();
+
+        const handleUnreadCount = (count: number) => {
+            setUnreadCount(count);
+        };
+
+        const handleNewNotification = (item: NotificationItem) => {
+            setUnreadCount((prev) => prev + 1);
+            setNotifications((prev) => {
+                if (prev.some((n) => n.id === item.id)) {
+                    return prev;
+                }
+                return [item, ...prev];
+            });
+        };
+
+        socket.on(SOCKET_EVENTS.notificationUnreadCount, handleUnreadCount);
+        socket.on(SOCKET_EVENTS.notificationNew, handleNewNotification);
+
+        return () => {
+            socket.off(SOCKET_EVENTS.notificationUnreadCount, handleUnreadCount);
+            socket.off(SOCKET_EVENTS.notificationNew, handleNewNotification);
         };
     }, []);
 

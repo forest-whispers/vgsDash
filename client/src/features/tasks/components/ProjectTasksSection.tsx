@@ -17,6 +17,7 @@ import Button from "../../../shared/ui/Button";
 import EmptyState from "../../../shared/ui/EmptyState";
 import Spinner from "../../../shared/ui/Spinner";
 import { getErrorMessage } from "../../../shared/utils/getErrorMessage";
+import { getSocket, SOCKET_EVENTS } from "../../../lib/socket";
 
 interface ProjectTasksSectionProps {
     projectId: string;
@@ -86,6 +87,36 @@ export default function ProjectTasksSection({
             isMounted = false;
         };
     }, [projectId, filters, refreshIndex]);
+
+    // Realtime task updates for the current project
+    useEffect(() => {
+        const socket = getSocket();
+
+        const handleTaskCreated = (newTask: Task) => {
+            if (newTask.projectId !== projectId) return;
+            setTasks((prev) => {
+                if (prev.some((t) => t.id === newTask.id)) {
+                    return prev;
+                }
+                return [newTask, ...prev];
+            });
+        };
+
+        const handleTaskUpdated = (updatedTask: Task) => {
+            if (updatedTask.projectId !== projectId) return;
+            setTasks((prev) =>
+                prev.map((t) => (t.id === updatedTask.id ? { ...t, ...updatedTask } : t))
+            );
+        };
+
+        socket.on(SOCKET_EVENTS.taskCreated, handleTaskCreated);
+        socket.on(SOCKET_EVENTS.taskUpdated, handleTaskUpdated);
+
+        return () => {
+            socket.off(SOCKET_EVENTS.taskCreated, handleTaskCreated);
+            socket.off(SOCKET_EVENTS.taskUpdated, handleTaskUpdated);
+        };
+    }, [projectId]);
 
     const handleCreateClick = () => {
         setEditingTask(null);

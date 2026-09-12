@@ -6,6 +6,7 @@ import Button from "../../../shared/ui/Button";
 import EmptyState from "../../../shared/ui/EmptyState";
 import Spinner from "../../../shared/ui/Spinner";
 import { getErrorMessage } from "../../../shared/utils/getErrorMessage";
+import { getSocket, SOCKET_EVENTS } from "../../../lib/socket";
 
 export default function ActivitiesPage() {
     const [activities, setActivities] = useState<Activity[]>([]);
@@ -41,6 +42,49 @@ export default function ActivitiesPage() {
             isMounted = false;
         };
     }, [refreshIndex]);
+
+    // Realtime activity updates and reconnect catch-up
+    useEffect(() => {
+        const socket = getSocket();
+
+        const handleNewActivity = (activity: Activity) => {
+            setActivities((prev) => {
+                if (prev.some((a) => a.id === activity.id)) {
+                    return prev;
+                }
+                return [activity, ...prev];
+            });
+        };
+
+        // Catch-up on reconnect/re-enter
+        const handleCatchUp = () => {
+            activitiesService
+                .getActivities({ limit: 20 })
+                .then((latest) => {
+                    setActivities((prev) => {
+                        const existingIds = new Set(prev.map((a) => a.id));
+                        const fresh = latest.filter((a) => !existingIds.has(a.id));
+                        if (fresh.length === 0) return prev;
+                        return [...fresh, ...prev].sort(
+                            (a, b) =>
+                                new Date(b.createdAt).getTime() -
+                                new Date(a.createdAt).getTime()
+                        );
+                    });
+                })
+                .catch(() => {
+                    // Non-critical catch-up failure
+                });
+        };
+
+        socket.on(SOCKET_EVENTS.activityNew, handleNewActivity);
+        socket.on("connect", handleCatchUp);
+
+        return () => {
+            socket.off(SOCKET_EVENTS.activityNew, handleNewActivity);
+            socket.off("connect", handleCatchUp);
+        };
+    }, []);
 
     return (
         <div className="flex flex-col gap-6">
