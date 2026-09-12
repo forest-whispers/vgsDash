@@ -49,6 +49,20 @@ export const createActivityService = async ( tx: Prisma.TransactionClient, data:
             projectId: data.projectId,
             ...(data.taskId !== undefined && { taskId: data.taskId }),
             ...(data.metadata !== undefined && { metadata: data.metadata })
+        },
+        select: {
+            id: true,
+            type: true,
+            actor: {
+                select: {
+                    id: true,
+                    name: true
+                }
+            },
+            projectId: true,
+            taskId: true,
+            metadata: true,
+            createdAt: true
         }
     });
 };

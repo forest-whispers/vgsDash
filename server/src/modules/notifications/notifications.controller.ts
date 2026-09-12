@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 
 import * as notificationsService from "./notifications.service.js";
+import { emitUnreadCount } from "../../socket/events.js";
 
 export const getNotifications = async (req: Request, res: Response) =>
 {
@@ -22,11 +23,13 @@ export const getUnreadCount = async (req: Request, res: Response) =>
 export const markNotificationRead = async (req: Request, res: Response) =>
 {
     const notificationId = req.params.notificationId as string;
-    const notification = await notificationsService.markNotificationReadService(
+    const result = await notificationsService.markNotificationReadService(
         req.user!,
         notificationId
     );
-    res.status(200).json({ notification });
+
+    emitUnreadCount( req.user!.userId, result.unreadCount );
+    res.status(200).json({ notification: result.notification });
 };
 
 export const markAllNotificationsRead = async (req: Request, res: Response) =>
@@ -34,6 +37,7 @@ export const markAllNotificationsRead = async (req: Request, res: Response) =>
     const result = await notificationsService.markAllNotificationsReadService(
         req.user!
     );
+    emitUnreadCount( req.user!.userId, result.unreadCount );
     res.status(200).json({
         message: "All notifications marked as read.",
         updatedCount: result.updatedCount

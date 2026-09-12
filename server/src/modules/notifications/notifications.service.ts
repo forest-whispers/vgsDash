@@ -14,6 +14,16 @@ export const createNotificationService = async ( tx: Prisma.TransactionClient, d
             ...(data.projectId !== undefined && { projectId: data.projectId }),
             ...(data.taskId !== undefined && { taskId: data.taskId }),
             ...(data.metadata !== undefined && { metadata: data.metadata })
+        },
+        select: {
+            id: true,
+            type: true,
+            recipientId: true,
+            projectId: true,
+            taskId: true,
+            metadata: true,
+            readAt: true,
+            createdAt: true
         }
     });
 };
@@ -69,10 +79,13 @@ export const markNotificationReadService = async ( user: AuthContext, notificati
     }
     if (notification.readAt !== null)
     {
-        return notification;
+        return {
+            notification,
+            unreadCount: await getUnreadCountService(user)
+        };
     }
 
-    return prisma.notification.update({
+    const updatedNotification = prisma.notification.update({
         where: {
             id: notificationId
         },
@@ -84,6 +97,12 @@ export const markNotificationReadService = async ( user: AuthContext, notificati
             readAt: true
         }
     });
+
+    const unreadCount = await getUnreadCountService(user);
+    return {
+        notification: updatedNotification,
+        unreadCount
+    };
 };
 
 export const markAllNotificationsReadService = async (user: AuthContext) =>
@@ -98,6 +117,7 @@ export const markAllNotificationsReadService = async (user: AuthContext) =>
         }
     });
     return {
-        updatedCount: result.count
+        updatedCount: result.count,
+        unreadCount: 0
     };
 };

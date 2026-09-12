@@ -7,6 +7,7 @@ import { SOCKET_EVENTS, SOCKET_ROOMS } from "./constants.js";
 import { UserRole } from "@prisma/client";
 import { ensureSocketProjectAccess } from "../modules/project/realtime/project.realtime.accessHelper.js";
 import { addSocketToProject, getProjectPresence, removeSocketFromProject } from "../modules/project/realtime/project.realtime.presence.js";
+import { getUnreadCountService } from "../modules/notifications/notifications.service.js";
 
 export const initializeSocket = (httpServer: HttpServer) => {
     const io = createSocket(httpServer);
@@ -41,6 +42,10 @@ export const initializeSocket = (httpServer: HttpServer) => {
 
                     await client.join(SOCKET_ROOMS.project(projectId));
                     console.log(`project:join: ${projectId}`);
+
+                    const unreadCount = await getUnreadCountService(client.user);
+
+                    client.emit(SOCKET_EVENTS.notificationUnreadCount, unreadCount);
 
                     const presence = getProjectPresence(projectId);
 

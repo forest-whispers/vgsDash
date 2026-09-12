@@ -7,6 +7,7 @@ import type { AuthContext } from "../auth/auth.types.js";
 import type { AssignTaskDto, CreateTaskDto, TaskFilters, UpdateTaskDto, UpdateTaskStatusDto } from "./tasks.types.js";
 import { createActivityService } from "../activities/activities.service.js";
 import { createNotificationService } from "../notifications/notifications.service.js";
+import { emitActivity, emitNotification, emitTaskCreated, emitTaskUpdated } from "../../socket/events.js";
 
 export const taskStatusTransitions: Record<TaskStatus, TaskStatus[]> = {
     [TaskStatus.TODO]: [
@@ -52,7 +53,7 @@ export const createTaskService = async ( user: AuthContext, projectId: string, d
         throw new ConflictError("Tasks cannot be created in abandoned projects");
     }
 
-    return prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
         const task = await tx.task.create({
             data: {
                 title: data.title,
@@ -80,16 +81,17 @@ export const createTaskService = async ( user: AuthContext, projectId: string, d
             }
         });
 
-        await createActivityService(tx, {
+        const activity = await createActivityService(tx, {
             type: ActivityType.TASK_CREATED,
             actorId: user.userId,
             projectId,
             taskId: task.id
         });
 
+        let notification = null;
         if (task.assignedDeveloperId !== null)
         {
-            await createNotificationService(tx, {
+            notification = await createNotificationService(tx, {
                 type: NotificationType.TASK_ASSIGNED,
                 recipientId: task.assignedDeveloperId,
                 projectId: task.projectId,
@@ -99,8 +101,20 @@ export const createTaskService = async ( user: AuthContext, projectId: string, d
                 }
             });
         }
-        return task;
+        return {
+            task,
+            activity,
+            notification
+        };
     });
+
+    emitTaskCreated( result.task.projectId, result.task);
+    emitActivity( result.task.projectId, result.activity);
+    if (result.notification)
+    {
+        emitNotification( result.notification.recipientId, result.notification);
+    }
+    return result.task;
 };
 
 export const getTasksService = async ( user: AuthContext, projectId: string, filters: TaskFilters ) =>
@@ -187,7 +201,7 @@ export const updateTaskService = async ( user: AuthContext, taskId: string, data
         filteredPayload.status = TaskStatus.IN_PROGRESS;
     }
 
-    return prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
         const task = await tx.task.update({
             where: { id: taskId },
             data: {
@@ -208,7 +222,7 @@ export const updateTaskService = async ( user: AuthContext, taskId: string, data
                 updatedAt: true
             }
         });
-        await createActivityService(tx, {
+        const activity = await createActivityService(tx, {
             type: ActivityType.TASK_UPDATED,
             actorId: user.userId,
             projectId: task.projectId,
@@ -217,9 +231,11 @@ export const updateTaskService = async ( user: AuthContext, taskId: string, data
                 fields: Object.keys(data)
             }
         });
+
+        let statusActivity = null;
         if (orgTask.status !== task.status)
         {
-            await createActivityService(tx, {
+            statusActivity = await createActivityService(tx, {
                 type: ActivityType.TASK_STATUS_CHANGED,
                 actorId: user.userId,
                 projectId: task.projectId,
@@ -230,8 +246,20 @@ export const updateTaskService = async ( user: AuthContext, taskId: string, data
                 }
             });
         }
-        return task;
+        return {
+            task,
+            activity,
+            statusActivity
+        };
     });
+
+    emitTaskUpdated( result.task.projectId, result.task);
+    emitActivity( result.task.projectId, result.activity);
+    if (result.statusActivity)
+    {
+        emitActivity( result.task.projectId, result.statusActivity);
+    }
+    return result.task;
 };
 
 export const assignTaskService = async ( user: AuthContext, taskId: string, data: AssignTaskDto ) =>
@@ -250,7 +278,7 @@ export const assignTaskService = async ( user: AuthContext, taskId: string, data
         throw new ConflictError("Task is already assigned to this developer");
     }
 
-    return prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
         const updatedTask = await tx.task.update({
             where: { id: taskId },
             data: {
@@ -259,9 +287,15 @@ export const assignTaskService = async ( user: AuthContext, taskId: string, data
             },
             select: {
                 id: true,
+                title: true,
+                description: true,
                 status: true,
-                assignedDeveloperId: true,
+                priority: true,
+                dueDate: true,
                 projectId: true,
+                assignedDeveloperId: true,
+                createdById: true,
+                createdAt: true,
                 updatedAt: true
             }
         });
@@ -291,7 +325,7 @@ export const assignTaskService = async ( user: AuthContext, taskId: string, data
             };
         }
 
-        await createActivityService(tx, {
+        const activity = await createActivityService(tx, {
             type: activityType,
             actorId: user.userId,
             projectId: updatedTask.projectId,
@@ -299,8 +333,9 @@ export const assignTaskService = async ( user: AuthContext, taskId: string, data
             metadata
         });
 
+        let notification = null;
         if (data.developerId !== null && task.assignedDeveloperId !== data.developerId) {
-            await createNotificationService(tx, {
+            notification = await createNotificationService(tx, {
                 type: NotificationType.TASK_ASSIGNED,
                 recipientId: data.developerId,
                 projectId: updatedTask.projectId,
@@ -311,8 +346,9 @@ export const assignTaskService = async ( user: AuthContext, taskId: string, data
             });
         }
 
+        let statusActivity = null;
         if (task.status !== updatedTask.status) {
-            await createActivityService(tx, {
+            statusActivity = await createActivityService(tx, {
                 type: ActivityType.TASK_STATUS_CHANGED,
                 actorId: user.userId,
                 projectId: updatedTask.projectId,
@@ -324,11 +360,28 @@ export const assignTaskService = async ( user: AuthContext, taskId: string, data
             });
         }
         return {
-            id: updatedTask.id,
-            assignedDeveloperId: updatedTask.assignedDeveloperId,
-            updatedAt: updatedTask.updatedAt
+            task: updatedTask,
+            activity,
+            statusActivity,
+            notification
         };
     });
+
+    emitTaskUpdated( result.task.projectId, result.task);
+    emitActivity( result.task.projectId, result.activity);
+    if (result.statusActivity)
+    {
+        emitActivity( result.task.projectId, result.statusActivity);
+    }
+    if (result.notification)
+    {
+        emitNotification( result.notification.recipientId, result.notification);
+    }
+    return {
+        id: result.task.id,
+        assignedDeveloperId: result.task.assignedDeveloperId,
+        updatedAt: result.task.updatedAt
+    };
 };
 
 export const updateTaskStatusService = async ( user: AuthContext, taskId: string, data: UpdateTaskStatusDto ) =>
@@ -341,7 +394,7 @@ export const updateTaskStatusService = async ( user: AuthContext, taskId: string
         throw new ConflictError(`Task cannot move from ${task.status} to ${data.status}.`);
     }
 
-    return prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
         const updatedTask = await tx.task.update({
             where: { id: taskId },
             data: {
@@ -349,8 +402,15 @@ export const updateTaskStatusService = async ( user: AuthContext, taskId: string
             },
             select: {
                 id: true,
+                title: true,
+                description: true,
                 status: true,
+                priority: true,
+                dueDate: true,
                 projectId: true,
+                assignedDeveloperId: true,
+                createdById: true,
+                createdAt: true,
                 updatedAt: true,
                 project: {
                     select: {
@@ -360,7 +420,7 @@ export const updateTaskStatusService = async ( user: AuthContext, taskId: string
             }
         });
 
-        await createActivityService(tx, {
+        const activity = await createActivityService(tx, {
             type: ActivityType.TASK_STATUS_CHANGED,
             actorId: user.userId,
             projectId: updatedTask.projectId,
@@ -371,19 +431,34 @@ export const updateTaskStatusService = async ( user: AuthContext, taskId: string
             }
         });
 
+        let notification = null;
         if (updatedTask.status === TaskStatus.IN_REVIEW && updatedTask.project.managerId !== null)
         {
-            await createNotificationService(tx, {
+            notification = await createNotificationService(tx, {
                 type: NotificationType.TASK_IN_REVIEW,
                 recipientId: updatedTask.project.managerId,
                 projectId: updatedTask.projectId,
                 taskId: updatedTask.id
             });
         }
+
+        const { project: _project, ...updatedTaskData } = updatedTask;
         return {
-            id: updatedTask.id,
-            status: updatedTask.status,
-            updatedAt: updatedTask.updatedAt
+            task: updatedTaskData,
+            activity,
+            notification
         };
     });
+
+    emitTaskUpdated( result.task.projectId, result.task);
+    emitActivity( result.task.projectId, result.activity);
+    if (result.notification)
+    {
+        emitNotification( result.notification.recipientId, result.notification);
+    }
+    return {
+        id: result.task.id,
+        status: result.task.status,
+        updatedAt: result.task.updatedAt
+    };
 };

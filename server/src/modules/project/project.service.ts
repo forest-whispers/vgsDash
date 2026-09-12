@@ -7,6 +7,7 @@ import type { AuthContext } from "../auth/auth.types.js";
 import { ensureProjectAccess, ensureProjectManager } from "../../shared/authorization/projectResource.js";
 import { createActivityService } from "../activities/activities.service.js";
 import { createNotificationService } from "../notifications/notifications.service.js";
+import { emitActivity, emitNotification } from "../../socket/events.js";
 
 export const createProjectService = async ( user: AuthContext, data: CreateProjectDto ) =>
 {
@@ -34,7 +35,7 @@ export const createProjectService = async ( user: AuthContext, data: CreateProje
         throw new NotFoundError("Client not found");
     }
 
-    return prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
         const project = await tx.project.create({
             data: {
                 name: data.name,
@@ -56,15 +57,16 @@ export const createProjectService = async ( user: AuthContext, data: CreateProje
             }
         });
 
-        await createActivityService(tx, {
+        const activity = await createActivityService(tx, {
             type: ActivityType.PROJECT_CREATED,
             actorId: user.userId,
             projectId: project.id
         });
 
+        let notification = null;
         if (managerId !== undefined && managerId !== null && managerId !== user.userId)
         {
-            await createNotificationService(tx, {
+            notification = await createNotificationService(tx, {
                 type: NotificationType.PROJECT_ASSIGNED,
                 recipientId: managerId,
                 projectId: project.id,
@@ -73,8 +75,19 @@ export const createProjectService = async ( user: AuthContext, data: CreateProje
                 }
             });
         }
-        return project;
+        return {
+            project,
+            activity,
+            notification
+        }
     });
+
+    emitActivity( result.project.id, result.activity);
+    if (result.notification)
+    {
+        emitNotification( result.notification.recipientId, result.notification);
+    }
+    return result.project;
 };
 
 export const getProjectsService = async (user: AuthContext) =>
@@ -137,7 +150,7 @@ export const updateProjectService = async ( user: AuthContext, projectId: string
         await ensureProjectManager(filteredPayload.managerId);
     }
 
-    return prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
         const updatedProject = await tx.project.update({
             where: { id: projectId },
             data: filteredPayload,
@@ -154,7 +167,7 @@ export const updateProjectService = async ( user: AuthContext, projectId: string
             }
         });
 
-        await createActivityService(tx, {
+        const activity = await createActivityService(tx, {
             type: ActivityType.PROJECT_UPDATED,
             actorId: user.userId,
             projectId: updatedProject.id,
@@ -163,9 +176,10 @@ export const updateProjectService = async ( user: AuthContext, projectId: string
             }
         });
 
+        let notification = null;
         if (project.managerId !== updatedProject.managerId && updatedProject.managerId !== null && updatedProject.managerId !== user.userId)
         {
-            await createNotificationService(tx, {
+            notification = await createNotificationService(tx, {
                 type: NotificationType.PROJECT_ASSIGNED,
                 recipientId: updatedProject.managerId,
                 projectId: updatedProject.id,
@@ -174,8 +188,19 @@ export const updateProjectService = async ( user: AuthContext, projectId: string
                 },
             });
         }
-        return updatedProject;
+        return {
+            project: updatedProject,
+            activity,
+            notification
+        };
     });
+
+    emitActivity( result.project.id, result.activity);
+    if (result.notification)
+    {
+        emitNotification( result.notification.recipientId, result.notification);
+    }
+    return result.project;
 };
 
 export const abandonProjectService = async ( user: AuthContext, projectId: string ) => {
@@ -184,7 +209,7 @@ export const abandonProjectService = async ( user: AuthContext, projectId: strin
     {
         throw new ConflictError("Project is already abandoned");
     }
-    return prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
         const updatedProject = await tx.project.update({
             where: { id: projectId },
             data: {
@@ -197,12 +222,18 @@ export const abandonProjectService = async ( user: AuthContext, projectId: strin
             }
         });
 
-        await createActivityService(tx, {
+        const activity =await createActivityService(tx, {
             type: ActivityType.PROJECT_ABANDONED,
             actorId: user.userId,
             projectId: projectId
         });
 
-        return updatedProject;
+        return {
+            project: updatedProject,
+            activity
+        };
     });
+
+    emitActivity( projectId, result.activity);
+    return result.project;
 };
