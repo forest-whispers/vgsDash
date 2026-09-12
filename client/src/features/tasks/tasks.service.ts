@@ -96,3 +96,46 @@ export const getDevelopers = async (): Promise<DeveloperOption[]> => {
     });
     return response.data.users;
 };
+
+export const getMyTasks = async (filters?: TaskFilters): Promise<Task[]> => {
+    const params: Record<string, string> = {};
+    if (filters?.status) params.status = filters.status;
+    if (filters?.priority) params.priority = filters.priority;
+    if (filters?.dueFrom) params.dueFrom = new Date(filters.dueFrom).toISOString();
+    if (filters?.dueTo) params.dueTo = new Date(filters.dueTo).toISOString();
+
+    const response = await api.get<{ tasks: Task[] }>("/tasks", { params });
+    return response.data.tasks;
+};
+
+export const getTaskDetails = async (taskId: string): Promise<Task> => {
+    const response = await api.get<{ task: Task }>(`/tasks/${taskId}`);
+    return response.data.task;
+};
+
+const PRIORITY_RANK: Record<string, number> = {
+    CRITICAL: 4,
+    HIGH: 3,
+    MEDIUM: 2,
+    LOW: 1,
+};
+
+export const sortDeveloperTasks = (tasks: Task[]): Task[] => {
+    return [...tasks].sort((a, b) => {
+        const pA = PRIORITY_RANK[a.priority] ?? 0;
+        const pB = PRIORITY_RANK[b.priority] ?? 0;
+        if (pA !== pB) {
+            return pB - pA;
+        }
+        if (a.dueDate && b.dueDate) {
+            return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+        }
+        if (a.dueDate && !b.dueDate) {
+            return -1;
+        }
+        if (!a.dueDate && b.dueDate) {
+            return 1;
+        }
+        return 0;
+    });
+};

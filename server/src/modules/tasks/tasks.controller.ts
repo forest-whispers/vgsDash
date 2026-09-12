@@ -17,7 +17,7 @@ export const createTask = async (req: Request, res: Response) =>
 
 export const getTasks = async (req: Request, res: Response) =>
 {
-    const projectId = req.params.projectId as string;
+    const projectId = req.params.projectId as string | undefined;
     const tasks = await tasksService.getTasksService(
         req.user!,
         projectId,

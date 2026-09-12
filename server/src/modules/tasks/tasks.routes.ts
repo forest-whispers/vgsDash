@@ -16,6 +16,8 @@ router.post( "/projects/:projectId/tasks", checkRole(UserRole.ADMIN, UserRole.PR
 
 router.get( "/projects/:projectId/tasks", checkRole(UserRole.ADMIN, UserRole.PROJECT_MANAGER, UserRole.DEVELOPER), validate(taskFiltersSchema, "query"), asyncHandler(tasksController.getTasks));
 
+router.get( "/tasks", checkRole(UserRole.ADMIN, UserRole.PROJECT_MANAGER, UserRole.DEVELOPER), validate(taskFiltersSchema, "query"), asyncHandler(tasksController.getTasks));
+
 router.get( "/tasks/:taskId", checkRole(UserRole.ADMIN, UserRole.PROJECT_MANAGER, UserRole.DEVELOPER), asyncHandler(tasksController.getTask));
 
 router.patch( "/tasks/:taskId", checkRole(UserRole.ADMIN, UserRole.PROJECT_MANAGER), validate(updateTaskSchema), asyncHandler(tasksController.updateTask));

@@ -14,6 +14,15 @@ export interface Task {
     createdById: string;
     createdAt: string;
     updatedAt: string;
+    project?: {
+        id: string;
+        name: string;
+    };
+    assignedDeveloper?: {
+        id: string;
+        name: string;
+        email: string;
+    };
 }
 
 export interface TaskFilters {

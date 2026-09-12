@@ -117,34 +117,37 @@ export const createTaskService = async ( user: AuthContext, projectId: string, d
     return result.task;
 };
 
-export const getTasksService = async ( user: AuthContext, projectId: string, filters: TaskFilters ) =>
+export const getTasksService = async ( user: AuthContext, projectId?: string, filters: TaskFilters = {} ) =>
 {
-    const project = await prisma.project.findUnique({
-        where: { id: projectId },
-        select: {
-            id: true,
-            managerId: true
-        }
-    });
-    if (!project)
+    if (projectId)
     {
-        throw new NotFoundError("Project not found");
-    }
-    if (user.role === UserRole.ADMIN || user.role === UserRole.DEVELOPER)
-    {} else if (user.role === UserRole.PROJECT_MANAGER)
-    {
-        if (project.managerId !== user.userId)
+        const project = await prisma.project.findUnique({
+            where: { id: projectId },
+            select: {
+                id: true,
+                managerId: true
+            }
+        });
+        if (!project)
         {
-            throw new ForbiddenError("You do not have access to this project");
+            throw new NotFoundError("Project not found");
         }
-    } else
-    {
-        throw new ForbiddenError("You do not have access to tasks");
+        if (user.role === UserRole.ADMIN || user.role === UserRole.DEVELOPER)
+        {} else if (user.role === UserRole.PROJECT_MANAGER)
+        {
+            if (project.managerId !== user.userId)
+            {
+                throw new ForbiddenError("You do not have access to this project");
+            }
+        } else
+        {
+            throw new ForbiddenError("You do not have access to tasks");
+        }
     }
 
     return prisma.task.findMany({
         where: {
-            projectId,
+            ...(projectId && { projectId }),
             ...(user.role === UserRole.DEVELOPER && { assignedDeveloperId: user.userId }),
             ...(filters.status && { status: filters.status }),
             ...(filters.priority && { priority: filters.priority }),
@@ -174,7 +177,13 @@ export const getTasksService = async ( user: AuthContext, projectId: string, fil
             assignedDeveloperId: true,
             createdById: true,
             createdAt: true,
-            updatedAt: true
+            updatedAt: true,
+            project: {
+                select: {
+                    id: true,
+                    name: true
+                }
+            }
         }
     });
 };
