@@ -1,10 +1,11 @@
-import { Prisma, TaskStatus, UserRole } from "@prisma/client";
+import { ActivityType, Prisma, ProjectStatus, TaskStatus, UserRole } from "@prisma/client";
 
 import { prisma } from "../../shared/config/prisma.js";
 import { ConflictError, ForbiddenError, NotFoundError } from "../../shared/errors/errors.js";
 import { ensureDeveloper, ensureTaskAccess } from "../../shared/authorization/taskResource.js";
 import type { AuthContext } from "../auth/auth.types.js";
 import type { AssignTaskDto, CreateTaskDto, TaskFilters, UpdateTaskDto, UpdateTaskStatusDto } from "./tasks.types.js";
+import { createActivityService } from "../activities/activities.service.js";
 
 export const taskStatusTransitions: Record<TaskStatus, TaskStatus[]> = {
     [TaskStatus.TODO]: [
@@ -29,7 +30,8 @@ export const createTaskService = async ( user: AuthContext, projectId: string, d
         where: { id: projectId },
         select: {
             id: true,
-            managerId: true
+            managerId: true,
+            status: true
         }
     });
     if (!project)
@@ -44,30 +46,45 @@ export const createTaskService = async ( user: AuthContext, projectId: string, d
     {
         await ensureDeveloper(data.assignedDeveloperId);
     }
+    if (project.status === ProjectStatus.ABANDONED)
+    {
+        throw new ConflictError("Tasks cannot be created in abandoned projects");
+    }
 
-    return prisma.task.create({
-        data: {
-            title: data.title,
-            ...(data.description !== undefined && { description: data.description }),
-            ...(data.priority !== undefined && { priority: data.priority }),
-            ...(data.dueDate !== undefined && { dueDate: new Date(data.dueDate) }),
-            ...(data.assignedDeveloperId !== undefined && { assignedDeveloperId: data.assignedDeveloperId }),
+    return prisma.$transaction(async (tx) => {
+        const task = await tx.task.create({
+            data: {
+                title: data.title,
+                ...(data.description !== undefined && { description: data.description }),
+                ...(data.priority !== undefined && { priority: data.priority }),
+                ...(data.dueDate !== undefined && { dueDate: new Date(data.dueDate) }),
+                ...(data.assignedDeveloperId !== undefined && {
+                    assignedDeveloperId: data.assignedDeveloperId
+                }),
+                projectId,
+                createdById: user.userId
+            },
+            select: {
+                id: true,
+                title: true,
+                description: true,
+                status: true,
+                priority: true,
+                dueDate: true,
+                projectId: true,
+                assignedDeveloperId: true,
+                createdById: true,
+                createdAt: true,
+                updatedAt: true
+            }
+        });
+        await createActivityService(tx, {
+            type: ActivityType.TASK_CREATED,
+            actorId: user.userId,
             projectId,
-            createdById: user.userId
-        },
-        select: {
-            id: true,
-            title: true,
-            description: true,
-            status: true,
-            priority: true,
-            dueDate: true,
-            projectId: true,
-            assignedDeveloperId: true,
-            createdById: true,
-            createdAt: true,
-            updatedAt: true
-        }
+            taskId: task.id
+        });
+        return task;
     });
 };
 
@@ -135,50 +152,70 @@ export const getTasksService = async ( user: AuthContext, projectId: string, fil
 
 export const getTaskService = async ( user: AuthContext, taskId: string ) =>
 {
-    const task = await ensureTaskAccess(user, taskId);
+    const { project: _project, ...task } = await ensureTaskAccess(user, taskId);
     return task;
 };
 
 export const updateTaskService = async ( user: AuthContext, taskId: string, data: UpdateTaskDto ) =>
 {
-    const task = await ensureTaskAccess(user, taskId);
-    if (task.status === "DONE")
-    {
-        throw new ConflictError("Completed tasks cannot be updated");
-    }
+    const orgTask = await ensureTaskAccess(user, taskId);
 
-    const allowedFields: (keyof UpdateTaskDto)[] = [
-        "title",
-        "description",
-        "priority",
-        "dueDate"
-    ];
-    const filteredPayload: UpdateTaskDto = {
+    // allowedFields: [ "title", "description", "priority", "dueDate" ]
+    const filteredPayload: UpdateTaskDto & { status?: TaskStatus; } = {
         ...(data.title !== undefined && { title: data.title }),
         ...(data.description !== undefined && { description: data.description }),
         ...(data.priority !== undefined && { priority: data.priority }),
-        ...(data.dueDate !== undefined && { dueDate: data.dueDate })
+        ...(data.dueDate !== undefined && { dueDate: data.dueDate }),
     };
+    if (orgTask.status === TaskStatus.DONE)
+    {
+        filteredPayload.status = TaskStatus.IN_PROGRESS;
+    }
 
-    return prisma.task.update({
-        where: { id: taskId },
-        data: {
-            ...filteredPayload,
-            ...(filteredPayload.dueDate !== undefined && { dueDate: new Date(filteredPayload.dueDate) })
-        },
-        select: {
-            id: true,
-            title: true,
-            description: true,
-            status: true,
-            priority: true,
-            dueDate: true,
-            projectId: true,
-            assignedDeveloperId: true,
-            createdById: true,
-            createdAt: true,
-            updatedAt: true
+    return prisma.$transaction(async (tx) => {
+        const task = await tx.task.update({
+            where: { id: taskId },
+            data: {
+                ...filteredPayload,
+                ...(filteredPayload.dueDate !== undefined && { dueDate: new Date(filteredPayload.dueDate) })
+            },
+            select: {
+                id: true,
+                title: true,
+                description: true,
+                status: true,
+                priority: true,
+                dueDate: true,
+                projectId: true,
+                assignedDeveloperId: true,
+                createdById: true,
+                createdAt: true,
+                updatedAt: true
+            }
+        });
+        await createActivityService(tx, {
+            type: ActivityType.TASK_UPDATED,
+            actorId: user.userId,
+            projectId: task.projectId,
+            taskId: task.id,
+            metadata: {
+                fields: Object.keys(data)
+            }
+        });
+        if (orgTask.status !== task.status)
+        {
+            await createActivityService(tx, {
+                type: ActivityType.TASK_STATUS_CHANGED,
+                actorId: user.userId,
+                projectId: task.projectId,
+                taskId: task.id,
+                metadata: {
+                    from: orgTask.status,
+                    to: task.status
+                }
+            });
         }
+        return task;
     });
 };
 
@@ -189,26 +226,80 @@ export const assignTaskService = async ( user: AuthContext, taskId: string, data
     {
         throw new ForbiddenError("Developers cannot assign tasks");
     }
-    if (task.status === "DONE")
-    {
-        throw new ConflictError("Completed tasks cannot be reassigned");
-    }
-
     if (data.developerId)
     {
         await ensureDeveloper(data.developerId);
     }
+    if (task.assignedDeveloperId === data.developerId)
+    {
+        throw new ConflictError("Task is already assigned to this developer");
+    }
 
-    return prisma.task.update({
-        where: { id: taskId },
-        data: {
-            assignedDeveloperId: data.developerId
-        },
-        select: {
-            id: true,
-            assignedDeveloperId: true,
-            updatedAt: true
+    return prisma.$transaction(async (tx) => {
+        const updatedTask = await tx.task.update({
+            where: { id: taskId },
+            data: {
+                assignedDeveloperId: data.developerId,
+                ...(task.status !== TaskStatus.IN_PROGRESS && { status: TaskStatus.IN_PROGRESS, }),
+            },
+            select: {
+                id: true,
+                status: true,
+                assignedDeveloperId: true,
+                projectId: true,
+                updatedAt: true
+            }
+        });
+
+        let activityType: ActivityType;
+        let metadata: Prisma.InputJsonValue | undefined;
+        if (task.assignedDeveloperId === null && data.developerId !== null)
+        {
+            activityType = ActivityType.TASK_ASSIGNED;
+            metadata = {
+                fromDeveloperId: null,
+                toDeveloperId: data.developerId
+            };
+        } else if (task.assignedDeveloperId !== null && data.developerId === null)
+        {
+            activityType = ActivityType.TASK_UNASSIGNED;
+            metadata = {
+                fromDeveloperId: task.assignedDeveloperId,
+                toDeveloperId: null
+            };
+        } else
+        {
+            activityType = ActivityType.TASK_REASSIGNED;
+            metadata = {
+                fromDeveloperId: task.assignedDeveloperId,
+                toDeveloperId: data.developerId
+            };
         }
+
+        await createActivityService(tx, {
+            type: activityType,
+            actorId: user.userId,
+            projectId: updatedTask.projectId,
+            taskId: updatedTask.id,
+            metadata
+        });
+        if (task.status !== updatedTask.status) {
+            await createActivityService(tx, {
+                type: ActivityType.TASK_STATUS_CHANGED,
+                actorId: user.userId,
+                projectId: updatedTask.projectId,
+                taskId: updatedTask.id,
+                metadata: {
+                    from: task.status,
+                    to: updatedTask.status
+                }
+            });
+        }
+        return {
+            id: updatedTask.id,
+            assignedDeveloperId: updatedTask.assignedDeveloperId,
+            updatedAt: updatedTask.updatedAt
+        };
     });
 };
 
@@ -222,15 +313,33 @@ export const updateTaskStatusService = async ( user: AuthContext, taskId: string
         throw new ConflictError(`Task cannot move from ${task.status} to ${data.status}.`);
     }
 
-    return prisma.task.update({
-        where: { id: taskId },
-        data: {
-            status: data.status
-        },
-        select: {
-            id: true,
-            status: true,
-            updatedAt: true
-        }
+    return prisma.$transaction(async (tx) => {
+        const updatedTask = await tx.task.update({
+            where: { id: taskId },
+            data: {
+                status: data.status
+            },
+            select: {
+                id: true,
+                status: true,
+                projectId: true,
+                updatedAt: true
+            }
+        });
+        await createActivityService(tx, {
+            type: ActivityType.TASK_STATUS_CHANGED,
+            actorId: user.userId,
+            projectId: updatedTask.projectId,
+            taskId: updatedTask.id,
+            metadata: {
+                from: task.status,
+                to: updatedTask.status
+            }
+        });
+        return {
+            id: updatedTask.id,
+            status: updatedTask.status,
+            updatedAt: updatedTask.updatedAt
+        };
     });
 };

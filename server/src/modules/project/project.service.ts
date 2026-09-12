@@ -1,23 +1,25 @@
-import { ProjectStatus, UserRole } from "@prisma/client";
+import { ActivityType, ProjectStatus, UserRole } from "@prisma/client";
 
 import { prisma } from "../../shared/config/prisma.js";
 import { ConflictError, NotFoundError } from "../../shared/errors/errors.js";
 import type { CreateProjectDto, UpdateProjectDto } from "./project.types.js";
 import type { AuthContext } from "../auth/auth.types.js";
 import { ensureProjectAccess, ensureProjectManager } from "../../shared/authorization/projectResource.js";
+import { createActivityService } from "../activities/activities.service.js";
 
 export const createProjectService = async ( user: AuthContext, data: CreateProjectDto ) =>
 {
+    let managerId = data.managerId;
     if (user.role === UserRole.PROJECT_MANAGER)
     {
-        data.managerId = user.userId;
+        managerId = user.userId;
     }
 
     if (user.role === UserRole.ADMIN)
     {
-        if(data.managerId)
+        if(managerId)
         {
-            await ensureProjectManager(data.managerId);
+            await ensureProjectManager(managerId);
         }
     }
 
@@ -31,25 +33,33 @@ export const createProjectService = async ( user: AuthContext, data: CreateProje
         throw new NotFoundError("Client not found");
     }
 
-    return prisma.project.create({
-        data: {
-            name: data.name,
-            ...(data.description !== undefined && { description: data.description }),
-            clientId: data.clientId,
-            createdById: user.userId,
-            ...(data.managerId !== undefined && { managerId: data.managerId })
-        },
-        select: {
-            id: true,
-            name: true,
-            description: true,
-            status: true,
-            clientId: true,
-            createdById: true,
-            managerId: true,
-            createdAt: true,
-            updatedAt: true
-        }
+    return prisma.$transaction(async (tx) => {
+        const project = await tx.project.create({
+            data: {
+                name: data.name,
+                ...(data.description !== undefined && { description: data.description }),
+                clientId: data.clientId,
+                createdById: user.userId,
+                ...(managerId !== undefined && { managerId })
+            },
+            select: {
+                id: true,
+                name: true,
+                description: true,
+                status: true,
+                clientId: true,
+                createdById: true,
+                managerId: true,
+                createdAt: true,
+                updatedAt: true
+            }
+        });
+        await createActivityService(tx, {
+            type: ActivityType.PROJECT_CREATED,
+            actorId: user.userId,
+            projectId: project.id
+        });
+        return project;
     });
 };
 
@@ -87,9 +97,7 @@ export const updateProjectService = async ( user: AuthContext, projectId: string
         throw new ConflictError("Abandoned projects cannot be updated");
     }
 
-    const allowedFields: (keyof UpdateProjectDto)[] = user.role === UserRole.ADMIN
-            ? ["name", "description", "clientId", "managerId"]
-            : ["name", "description", "clientId"];
+    // allowedFields: ["name", "description", "clientId", "managerId"] || ["name", "description", "clientId"]
     const filteredPayload: UpdateProjectDto = {
         ...(data.name !== undefined && { name: data.name }),
         ...(data.description !== undefined && { description: data.description }),
@@ -115,20 +123,31 @@ export const updateProjectService = async ( user: AuthContext, projectId: string
         await ensureProjectManager(filteredPayload.managerId);
     }
 
-    return prisma.project.update({
-        where: { id: projectId },
-        data: filteredPayload,
-        select: {
-            id: true,
-            name: true,
-            description: true,
-            status: true,
-            clientId: true,
-            createdById: true,
-            managerId: true,
-            createdAt: true,
-            updatedAt: true
-        }
+    return prisma.$transaction(async (tx) => {
+        const project = await tx.project.update({
+            where: { id: projectId },
+            data: filteredPayload,
+            select: {
+                id: true,
+                name: true,
+                description: true,
+                status: true,
+                clientId: true,
+                createdById: true,
+                managerId: true,
+                createdAt: true,
+                updatedAt: true
+            }
+        });
+        await createActivityService(tx, {
+            type: ActivityType.PROJECT_UPDATED,
+            actorId: user.userId,
+            projectId: project.id,
+            metadata: {
+                fields: Object.keys(filteredPayload)
+            }
+        });
+        return project;
     });
 };
 
@@ -138,14 +157,25 @@ export const abandonProjectService = async ( user: AuthContext, projectId: strin
     {
         throw new ConflictError("Project is already abandoned");
     }
-    return prisma.project.update({
-        where: { id: projectId },
-        data: {
-            status: ProjectStatus.ABANDONED
-        },
-        select: {
-            id: true,
-            status: true
-        }
+    return prisma.$transaction(async (tx) => {
+        const updatedProject = await tx.project.update({
+            where: { id: projectId },
+            data: {
+                status: ProjectStatus.ABANDONED
+            },
+            select: {
+                id: true,
+                status: true,
+                updatedAt: true
+            }
+        });
+
+        await createActivityService(tx, {
+            type: ActivityType.PROJECT_ABANDONED,
+            actorId: user.userId,
+            projectId: projectId
+        });
+
+        return updatedProject;
     });
 };

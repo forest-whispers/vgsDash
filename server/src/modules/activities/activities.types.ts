@@ -1,6 +1,7 @@
-import type { ActivityType } from "@prisma/client";
+import type { ActivityType, Prisma } from "@prisma/client";
 
-export interface ActivityMetadata {
+export interface ActivityMetadata
+{
     from?: string;
     to?: string;
     fromDeveloperId?: string | null;
@@ -8,7 +9,17 @@ export interface ActivityMetadata {
     fields?: string[];
 }
 
-export interface ActivityResponse {
+export interface CreateActivity
+{
+    type: ActivityType;
+    actorId: string;
+    projectId: string;
+    taskId?: string;
+    metadata?: Prisma.InputJsonValue;
+}
+
+export interface ActivityResponse
+{
     id: string;
     type: ActivityType;
     actor: {

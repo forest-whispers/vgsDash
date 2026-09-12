@@ -5,7 +5,7 @@ export interface CreateProjectDto
     name: string;
     description?: string;
     clientId: string;
-    managerId?: string;
+    managerId?: string | null;
 }
 
 export interface UpdateProjectDto

@@ -1,9 +1,9 @@
-import { UserRole, Prisma } from "@prisma/client";
+import { UserRole, Prisma, ActivityType } from "@prisma/client";
 
 import { prisma } from "../../shared/config/prisma.js";
 import { ForbiddenError } from "../../shared/errors/errors.js";
 import type { AuthContext } from "../auth/auth.types.js";
-import type { ActivityFilters } from "./activities.types.js";
+import type { ActivityFilters, CreateActivity } from "./activities.types.js";
 
 export const getActivitiesService = async ( user: AuthContext, filters: ActivityFilters ) =>
 {
@@ -37,5 +37,18 @@ export const getActivitiesService = async ( user: AuthContext, filters: Activity
             createdAt: "desc"
         },
         take: limit
+    });
+};
+
+export const createActivityService = async ( tx: Prisma.TransactionClient, data: CreateActivity ) =>
+{
+    return tx.activity.create({
+        data: {
+            type: data.type,
+            actorId: data.actorId,
+            projectId: data.projectId,
+            ...(data.taskId !== undefined && { taskId: data.taskId }),
+            ...(data.metadata !== undefined && { metadata: data.metadata })
+        }
     });
 };
