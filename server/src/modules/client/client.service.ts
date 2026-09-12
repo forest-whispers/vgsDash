@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "../../shared/config/prisma.js";
 
 import { ConflictError, NotFoundError } from "../../shared/errors/errors.js";
@@ -69,6 +70,15 @@ export const deleteClientService = async (clientId: string) =>
     });
     if (!client) {
         throw new NotFoundError("Client not found");
+    }
+
+    const projectsCount = await prisma.project.count({
+        where: { clientId }
+    });
+    if (projectsCount > 0) {
+        throw new ConflictError(
+            "Cannot delete client because they are associated with existing projects."
+        );
     }
 
     return prisma.client.delete({
