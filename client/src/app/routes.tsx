@@ -11,6 +11,7 @@ import ProjectDetailsPage from "../features/projects/pages/ProjectDetailsPage";
 import UsersPage from "../features/users/pages/UsersPage";
 import ClientsPage from "../features/clients/pages/ClientsPage";
 import DeveloperTasksPage from "../features/tasks/pages/DeveloperTasksPage";
+import ActivitiesPage from "../features/activities/pages/ActivitiesPage";
 import PlaceholderPage from "../shared/ui/PlaceholderPage";
 import RootRedirect from "../shared/ui/RootRedirect";
 
@@ -65,7 +66,7 @@ export const router = createBrowserRouter([
                     },
                     {
                         path: "/activity",
-                        element: <PlaceholderPage title="Activity" />,
+                        element: <ActivitiesPage />,
                     },
                     {
                         path: "/tasks",
