@@ -2,7 +2,7 @@ import { Prisma, UserRole, } from "@prisma/client";
 
 import { prisma } from "../../shared/config/prisma.js";
 import { constants } from "../../shared/config/constants.js";
-import { ConflictError, InternalServerError, UnauthorizedError, } from "../../shared/errors/errors.js";
+import { ConflictError, InternalServerError, NotFoundError, UnauthorizedError, } from "../../shared/errors/errors.js";
 import { comparePassword, hashPassword, } from "../../shared/lib/bcrypt.js";
 import { generateAccessToken, } from "../../shared/lib/jwt.js";
 import { hashToken, } from "../../shared/lib/hash.js";
@@ -177,4 +177,24 @@ export const logoutService = async (refreshToken?: string): Promise<void> =>
             revokedAt: new Date()
         }
     });
+};
+
+export const getMeService = async (userId: string) =>
+{
+    const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            createdAt: true,
+            updatedAt: true
+        }
+    });
+    if (!user)
+    {
+        throw new NotFoundError("User not found.");
+    }
+    return user;
 };

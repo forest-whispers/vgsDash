@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 
 import { constants } from "../../shared/config/constants.js";
 import { clearAuthCookies, setAuthCookies } from "../../shared/utils/cookies.js";
-import { registerService, loginService, refreshService, logoutService } from "./auth.service.js";
+import { registerService, loginService, refreshService, logoutService, getMeService } from "./auth.service.js";
 
 export const register = async (req: Request, res: Response) =>
 {
@@ -39,4 +39,10 @@ export const logout = async (req: Request, res: Response) =>
     return res.status(200).json({
         message: "Logged out successfully"
     });
+};
+
+export const getMe = async (req: Request, res: Response) =>
+{
+    const user = await getMeService(req.user!.userId);
+    res.status(200).json({ user });
 };

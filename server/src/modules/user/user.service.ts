@@ -1,7 +1,9 @@
+import { UserRole } from "@prisma/client";
 import { prisma } from "../../shared/config/prisma.js";
 
 import { ConflictError, ForbiddenError, NotFoundError } from "../../shared/errors/errors.js";
-import type { ConfigureUserRoleDto } from "./user.types.js";
+import type { AuthContext } from "../auth/auth.types.js";
+import type { ConfigureUserRoleDto, UserFilters } from "./user.types.js";
 
 export const updateUserRoleService = async (requesterId: string, targetId: string, data: ConfigureUserRoleDto) =>
 {
@@ -44,17 +46,62 @@ export const updateUserRoleService = async (requesterId: string, targetId: strin
     });
 }
 
-const getUserService = async (userId: string) => {
-    const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: {
-            id: true,
-            role: true
-        }
-    });
-    if (!user)
+export const getUsersService = async ( user: AuthContext, filters: UserFilters ) =>
+{
+    if (user.role !== UserRole.ADMIN)
     {
-        throw new NotFoundError("User not found");
+        throw new ForbiddenError("Only admins can access users");
     }
-    return user;
+    const page = filters.page ?? 1;
+    const limit = filters.limit ?? 20;
+    const skip = (page - 1) * limit;
+
+    const where = {
+        ...(filters.role && { role: filters.role }),
+        ...(filters.search && {
+            OR: [
+                {
+                    name: {
+                        contains: filters.search,
+                        mode: "insensitive" as const
+                    }
+                },
+                {
+                    email: {
+                        contains: filters.search,
+                        mode: "insensitive" as const
+                    }
+                }
+            ]
+        })
+    }
+
+    const [users, total] = await prisma.$transaction([
+        prisma.user.findMany({
+            where,
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
+                createdAt: true
+            },
+            orderBy: {
+                createdAt: "desc"
+            },
+            skip,
+            take: limit
+        }),
+        prisma.user.count({ where })
+    ]);
+
+    return {
+        users,
+        pagination: {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit)
+        },
+    };
 };
