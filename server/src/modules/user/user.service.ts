@@ -48,9 +48,9 @@ export const updateUserRoleService = async (requesterId: string, targetId: strin
 
 export const getUsersService = async ( user: AuthContext, filters: UserFilters ) =>
 {
-    if (user.role !== UserRole.ADMIN)
+    if (user.role !== UserRole.ADMIN && user.role !== UserRole.PROJECT_MANAGER)
     {
-        throw new ForbiddenError("Only admins can access users");
+        throw new ForbiddenError("Only admins and project managers can access users");
     }
     const page = filters.page ?? 1;
     const limit = filters.limit ?? 20;

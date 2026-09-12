@@ -6,6 +6,7 @@ import type { ClientOption, Project } from "../projects.types";
 import ProjectStatusBadge from "../components/ProjectStatusBadge";
 import ProjectModal from "../components/ProjectModal";
 import AbandonConfirmModal from "../components/AbandonConfirmModal";
+import ProjectTasksSection from "../../tasks/components/ProjectTasksSection";
 import Button from "../../../shared/ui/Button";
 import Spinner from "../../../shared/ui/Spinner";
 import { getErrorMessage } from "../../../shared/utils/getErrorMessage";
@@ -244,6 +245,12 @@ export default function ProjectDetailsPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Tasks Workspace */}
+            <ProjectTasksSection
+                projectId={project.id}
+                isAbandoned={isAbandoned}
+            />
 
             {/* Edit Project Modal */}
             {isEditModalOpen && (

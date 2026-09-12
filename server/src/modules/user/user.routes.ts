@@ -14,6 +14,6 @@ router.use(authenticate);
 
 router.patch( "/:userId/role", checkRole(UserRole.ADMIN), validate(updateUserRoleSchema), asyncHandler(updateUserRole));
 
-router.get( "/", checkRole(UserRole.ADMIN), validate(userFiltersSchema, "query"), getUsers);
+router.get( "/", checkRole(UserRole.ADMIN, UserRole.PROJECT_MANAGER), validate(userFiltersSchema, "query"), getUsers);
 
 export default router;
