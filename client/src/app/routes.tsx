@@ -6,6 +6,8 @@ import LoginPage from "../features/auth/pages/LoginPage";
 import RegisterPage from "../features/auth/pages/RegisterPage";
 import PublicOnlyRoute from "../features/auth/components/PublicOnlyRoute";
 import ProtectedRoute from "../features/auth/components/ProtectedRoute";
+import ProjectsPage from "../features/projects/pages/ProjectsPage";
+import ProjectDetailsPage from "../features/projects/pages/ProjectDetailsPage";
 import PlaceholderPage from "../shared/ui/PlaceholderPage";
 import RootRedirect from "../shared/ui/RootRedirect";
 
@@ -44,11 +46,11 @@ export const router = createBrowserRouter([
                     },
                     {
                         path: "/projects",
-                        element: <PlaceholderPage title="Projects" />,
+                        element: <ProjectsPage />,
                     },
                     {
                         path: "/projects/:projectId",
-                        element: <PlaceholderPage title="Project Details" />,
+                        element: <ProjectDetailsPage />,
                     },
                     {
                         path: "/clients",

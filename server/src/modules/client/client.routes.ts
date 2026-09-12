@@ -11,16 +11,16 @@ import { createClientSchema, updateClientSchema } from "./client.validation.js";
 
 const router = Router({ mergeParams: true });
 
-router.use(authenticate, checkRole(UserRole.ADMIN));
+router.use(authenticate);
 
-router.post( "/", validate(createClientSchema), asyncHandler(clientsController.createClient));
+router.post( "/", checkRole(UserRole.ADMIN), validate(createClientSchema), asyncHandler(clientsController.createClient));
 
-router.get( "/", asyncHandler(clientsController.getClients));
+router.get( "/", checkRole(UserRole.ADMIN, UserRole.PROJECT_MANAGER), asyncHandler(clientsController.getClients));
 
-router.get( "/:clientId", asyncHandler(clientsController.getClient));
+router.get( "/:clientId", checkRole(UserRole.ADMIN, UserRole.PROJECT_MANAGER), asyncHandler(clientsController.getClient));
 
-router.patch( "/:clientId", validate(updateClientSchema), asyncHandler(clientsController.updateClient));
+router.patch( "/:clientId", checkRole(UserRole.ADMIN), validate(updateClientSchema), asyncHandler(clientsController.updateClient));
 
-router.delete( "/:clientId", asyncHandler(clientsController.deleteClient));
+router.delete( "/:clientId", checkRole(UserRole.ADMIN), asyncHandler(clientsController.deleteClient));
 
 export default router;
