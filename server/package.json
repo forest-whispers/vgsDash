@@ -26,6 +26,7 @@
     "tsx": "^4.23.13"
   },
   "scripts": {
-    "dev": "tsx watch src/app/server.ts"
+    "dev": "tsx watch src/app/server.ts",
+    "db:flush": "tsx src/shared/utils/flushDb.ts"
   }
 }

@@ -14,6 +14,7 @@ const getNavItems = (role?: UserRole): NavItem[] => {
                 { label: "Dashboard", path: "/dashboard" },
                 { label: "Projects", path: "/projects" },
                 { label: "Clients", path: "/clients" },
+                { label: "Users", path: "/users" },
                 { label: "Activity", path: "/activity" },
             ];
         case "PROJECT_MANAGER":

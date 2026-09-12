@@ -28,7 +28,11 @@ export const validate = <T extends ZodType>(
             return;
         }
 
-        req[validateType] = result.data;
+        if (validateType === "query") {
+            Object.assign(req.query, result.data);
+        } else {
+            req[validateType] = result.data;
+        }
         next();
     };
 };
