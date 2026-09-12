@@ -30,7 +30,7 @@ export const getClientsService = async () =>
     return prisma.client.findMany({
         orderBy: {
             createdAt: "desc"
-        },
+        }
     });
 };
 

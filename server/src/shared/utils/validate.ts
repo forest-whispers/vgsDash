@@ -1,26 +1,34 @@
 import type { RequestHandler } from "express";
-import type { ZodObject } from "zod";
+import type { ZodType } from "zod";
 
-export const validateBody = ( schema: ZodObject ): RequestHandler => {
+type ValidateType = "body" | "query" | "params";
+
+export const validate = <T extends ZodType>(
+    schema: T,
+    validateType: ValidateType = "body",
+): RequestHandler => {
     return (req, res, next) => {
-        const result = schema.safeParse(req.body);
+        const result = schema.safeParse(req[validateType]);
 
         if (!result.success) {
             const formattedErrors = result.error.issues.map((err) => {
-                    const field = err.path.join(".") || "body";
-                    return {
-                        field,
-                        message: err.message,
-                    }
-            })
+                const field = err.path.join(".") || validateType;
+
+                return {
+                    field,
+                    message: err.message,
+                };
+            });
+
             res.status(400).json({
                 status: "fail",
                 errors: formattedErrors,
             });
+
             return;
         }
 
-        req.body = result.data;
+        req[validateType] = result.data;
         next();
     };
 };

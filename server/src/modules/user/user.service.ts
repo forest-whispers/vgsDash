@@ -40,6 +40,21 @@ export const updateUserRoleService = async (requesterId: string, targetId: strin
             role: true,
             createdAt: true,
             updatedAt: true
-        },
+        }
     });
 }
+
+const getUserService = async (userId: string) => {
+    const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+            id: true,
+            role: true
+        }
+    });
+    if (!user)
+    {
+        throw new NotFoundError("User not found");
+    }
+    return user;
+};

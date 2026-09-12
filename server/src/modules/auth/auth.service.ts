@@ -48,7 +48,7 @@ export const registerService = async ({ name, email, password }: RegisterDto) =>
                         role: true,
                         createdAt: true,
                         updatedAt: true
-                    },
+                    }
                 });
             },
         );
@@ -92,7 +92,7 @@ export const loginService = async ({ email, password }: LoginDto): Promise<AuthT
             tokenHash,
             userId: user.id,
             expiresAt: new Date(Date.now() + constants.REFRESH_TOKEN_TTL_MS)
-        },
+        }
     });
 
     return {
@@ -101,7 +101,8 @@ export const loginService = async ({ email, password }: LoginDto): Promise<AuthT
     };
 };
 
-export const refreshService = async (refreshToken: string): Promise<AuthTokens> => {
+export const refreshService = async (refreshToken: string): Promise<AuthTokens> =>
+{
     const tokenHash = hashToken(refreshToken);
 
     const storedToken = await prisma.refreshToken.findUnique({
@@ -133,7 +134,7 @@ export const refreshService = async (refreshToken: string): Promise<AuthTokens> 
             },
             data: {
                 revokedAt: now
-            },
+            }
         });
         if (revoked.count !== 1)
         {
@@ -143,7 +144,7 @@ export const refreshService = async (refreshToken: string): Promise<AuthTokens> 
             data: {
                 tokenHash: newTokenHash,
                 userId: storedToken.userId,
-                expiresAt: new Date(Date.now() + constants.REFRESH_TOKEN_TTL_MS),
+                expiresAt: new Date(Date.now() + constants.REFRESH_TOKEN_TTL_MS)
             }
         });
     });
@@ -159,7 +160,8 @@ export const refreshService = async (refreshToken: string): Promise<AuthTokens> 
     };
 };
 
-export const logoutService = async (refreshToken?: string): Promise<void> => {
+export const logoutService = async (refreshToken?: string): Promise<void> =>
+{
     if (!refreshToken)
     {
         return;

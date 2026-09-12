@@ -27,7 +27,12 @@ model User {
   role         UserRole @default(DEVELOPER)
 
   refreshTokens RefreshToken[]
-  projects      Project[]
+
+  createdProjects Project[] @relation("ProjectCreator")
+  managedProjects Project[] @relation("ProjectManager")
+
+  createdTasks  Task[] @relation("TaskCreator")
+  assignedTasks Task[] @relation("TaskDeveloper")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -63,20 +68,74 @@ model Client {
   @@index([name])
 }
 
+enum ProjectStatus {
+  ACTIVE
+  ABANDONED
+}
+
 model Project {
-  id          String  @id @default(cuid())
+  id          String        @id @default(cuid())
   name        String
   description String?
+  status      ProjectStatus @default(ACTIVE)
 
   clientId String
   client   Client @relation(fields: [clientId], references: [id], onDelete: Restrict)
 
-  managerId String
-  manager   User   @relation(fields: [managerId], references: [id], onDelete: Restrict)
+  createdById String
+  createdBy   User   @relation("ProjectCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  managerId String?
+  manager   User?   @relation("ProjectManager", fields: [managerId], references: [id], onDelete: Restrict)
+
+  tasks Task[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([clientId])
+  @@index([createdById])
   @@index([managerId])
+  @@index([status])
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  IN_REVIEW
+  DONE
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model Task {
+  id          String       @id @default(cuid())
+  title       String
+  description String?
+  status      TaskStatus   @default(TODO)
+  priority    TaskPriority @default(MEDIUM)
+  dueDate     DateTime?
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
+
+  assignedDeveloperId String?
+  assignedDeveloper   User?   @relation("TaskDeveloper", fields: [assignedDeveloperId], references: [id], onDelete: Restrict)
+
+  createdById String
+  createdBy   User   @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+  @@index([assignedDeveloperId])
+  @@index([status])
+  @@index([priority])
+  @@index([dueDate])
 }
