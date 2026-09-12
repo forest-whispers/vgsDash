@@ -1,4 +1,4 @@
-import { ActivityType, ProjectStatus, UserRole } from "@prisma/client";
+import { ActivityType, NotificationType, ProjectStatus, UserRole } from "@prisma/client";
 
 import { prisma } from "../../shared/config/prisma.js";
 import { ConflictError, NotFoundError } from "../../shared/errors/errors.js";
@@ -6,6 +6,7 @@ import type { CreateProjectDto, UpdateProjectDto } from "./project.types.js";
 import type { AuthContext } from "../auth/auth.types.js";
 import { ensureProjectAccess, ensureProjectManager } from "../../shared/authorization/projectResource.js";
 import { createActivityService } from "../activities/activities.service.js";
+import { createNotificationService } from "../notifications/notifications.service.js";
 
 export const createProjectService = async ( user: AuthContext, data: CreateProjectDto ) =>
 {
@@ -54,11 +55,24 @@ export const createProjectService = async ( user: AuthContext, data: CreateProje
                 updatedAt: true
             }
         });
+
         await createActivityService(tx, {
             type: ActivityType.PROJECT_CREATED,
             actorId: user.userId,
             projectId: project.id
         });
+
+        if (managerId !== undefined && managerId !== null && managerId !== user.userId)
+        {
+            await createNotificationService(tx, {
+                type: NotificationType.PROJECT_ASSIGNED,
+                recipientId: managerId,
+                projectId: project.id,
+                metadata: {
+                    projectName: project.name
+                }
+            });
+        }
         return project;
     });
 };
@@ -124,7 +138,7 @@ export const updateProjectService = async ( user: AuthContext, projectId: string
     }
 
     return prisma.$transaction(async (tx) => {
-        const project = await tx.project.update({
+        const updatedProject = await tx.project.update({
             where: { id: projectId },
             data: filteredPayload,
             select: {
@@ -139,15 +153,28 @@ export const updateProjectService = async ( user: AuthContext, projectId: string
                 updatedAt: true
             }
         });
+
         await createActivityService(tx, {
             type: ActivityType.PROJECT_UPDATED,
             actorId: user.userId,
-            projectId: project.id,
+            projectId: updatedProject.id,
             metadata: {
                 fields: Object.keys(filteredPayload)
             }
         });
-        return project;
+
+        if (project.managerId !== updatedProject.managerId && updatedProject.managerId !== null && updatedProject.managerId !== user.userId)
+        {
+            await createNotificationService(tx, {
+                type: NotificationType.PROJECT_ASSIGNED,
+                recipientId: updatedProject.managerId,
+                projectId: updatedProject.id,
+                metadata: {
+                    projectName: updatedProject.name,
+                },
+            });
+        }
+        return updatedProject;
     });
 };
 

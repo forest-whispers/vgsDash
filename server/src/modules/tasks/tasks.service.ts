@@ -1,4 +1,4 @@
-import { ActivityType, Prisma, ProjectStatus, TaskStatus, UserRole } from "@prisma/client";
+import { ActivityType, NotificationType, Prisma, ProjectStatus, TaskStatus, UserRole } from "@prisma/client";
 
 import { prisma } from "../../shared/config/prisma.js";
 import { ConflictError, ForbiddenError, NotFoundError } from "../../shared/errors/errors.js";
@@ -6,6 +6,7 @@ import { ensureDeveloper, ensureTaskAccess } from "../../shared/authorization/ta
 import type { AuthContext } from "../auth/auth.types.js";
 import type { AssignTaskDto, CreateTaskDto, TaskFilters, UpdateTaskDto, UpdateTaskStatusDto } from "./tasks.types.js";
 import { createActivityService } from "../activities/activities.service.js";
+import { createNotificationService } from "../notifications/notifications.service.js";
 
 export const taskStatusTransitions: Record<TaskStatus, TaskStatus[]> = {
     [TaskStatus.TODO]: [
@@ -78,12 +79,26 @@ export const createTaskService = async ( user: AuthContext, projectId: string, d
                 updatedAt: true
             }
         });
+
         await createActivityService(tx, {
             type: ActivityType.TASK_CREATED,
             actorId: user.userId,
             projectId,
             taskId: task.id
         });
+
+        if (task.assignedDeveloperId !== null)
+        {
+            await createNotificationService(tx, {
+                type: NotificationType.TASK_ASSIGNED,
+                recipientId: task.assignedDeveloperId,
+                projectId: task.projectId,
+                taskId: task.id,
+                metadata: {
+                    taskTitle: task.title
+                }
+            });
+        }
         return task;
     });
 };
@@ -283,6 +298,19 @@ export const assignTaskService = async ( user: AuthContext, taskId: string, data
             taskId: updatedTask.id,
             metadata
         });
+
+        if (data.developerId !== null && task.assignedDeveloperId !== data.developerId) {
+            await createNotificationService(tx, {
+                type: NotificationType.TASK_ASSIGNED,
+                recipientId: data.developerId,
+                projectId: updatedTask.projectId,
+                taskId: updatedTask.id,
+                metadata: {
+                    taskTitle: task.title
+                }
+            });
+        }
+
         if (task.status !== updatedTask.status) {
             await createActivityService(tx, {
                 type: ActivityType.TASK_STATUS_CHANGED,
@@ -323,9 +351,15 @@ export const updateTaskStatusService = async ( user: AuthContext, taskId: string
                 id: true,
                 status: true,
                 projectId: true,
-                updatedAt: true
+                updatedAt: true,
+                project: {
+                    select: {
+                        managerId: true
+                    }
+                }
             }
         });
+
         await createActivityService(tx, {
             type: ActivityType.TASK_STATUS_CHANGED,
             actorId: user.userId,
@@ -336,6 +370,16 @@ export const updateTaskStatusService = async ( user: AuthContext, taskId: string
                 to: updatedTask.status
             }
         });
+
+        if (updatedTask.status === TaskStatus.IN_REVIEW && updatedTask.project.managerId !== null)
+        {
+            await createNotificationService(tx, {
+                type: NotificationType.TASK_IN_REVIEW,
+                recipientId: updatedTask.project.managerId,
+                projectId: updatedTask.projectId,
+                taskId: updatedTask.id
+            });
+        }
         return {
             id: updatedTask.id,
             status: updatedTask.status,

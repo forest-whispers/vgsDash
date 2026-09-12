@@ -17,7 +17,7 @@ export const getActivitiesService = async ( user: AuthContext, filters: Activity
     return prisma.activity.findMany({
         where: {
             ...(user.role === UserRole.PROJECT_MANAGER && { project: { managerId: user.userId } }),
-            ...(user.role === UserRole.DEVELOPER && { task: { assignedDeveloperId: user.userId } }),
+            ...(user.role === UserRole.DEVELOPER && { task: { assignedDeveloperId: user.userId } })
         },
         select: {
             id: true,
