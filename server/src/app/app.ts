@@ -3,17 +3,31 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import morgan from "morgan";
 
-import { env } from "../shared/config/env.js";
 import { router } from "./routes.js";
 import { errorHandler } from "../shared/errors/errorHandler.js";
 import { NotFoundError } from "../shared/errors/errors.js";
 
 const app=express();
 
-app.use(cors({
-    origin: env.CLIENT_URL,
-    credentials: true
-}))
+const allowedOrigins = [
+    "http://localhost:5173",
+    "https://vgs-dash.vercel.app",
+    "https://vgs-dash-git-main-forest-whispers-projects.vercel.app",
+    "https://vgs-dash-r8k849wtw-forest-whispers-projects.vercel.app",
+];
+
+app.use(
+    cors({
+        origin: (origin, callback) => {
+            if (!origin || allowedOrigins.includes(origin)) {
+                callback(null, true);
+            } else {
+                callback(new Error("Not allowed by CORS"));
+            }
+        },
+        credentials: true,
+    }),
+);
 
 app.use(morgan("dev"));
 

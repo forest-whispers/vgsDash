@@ -1,14 +1,20 @@
 import type { Server as HttpServer } from "http";
 import { Server } from "socket.io";
 
-import { env } from "../shared/config/env.js";
-
 let io: Server;
+
+const allowedOrigins = [
+    "http://localhost:5173",
+    "https://vgs-dash.vercel.app",
+    "https://vgs-dash-git-main-forest-whispers-projects.vercel.app",
+    "https://vgs-dash-r8k849wtw-forest-whispers-projects.vercel.app",
+];
+
 
 export const createSocket = (httpServer: HttpServer) => {
     io = new Server(httpServer, {
         cors: {
-            origin: env.CLIENT_URL,
+            origin: allowedOrigins,
             credentials: true,
         },
     });
