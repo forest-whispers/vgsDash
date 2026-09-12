@@ -1,0 +1,26 @@
+{
+  "name": "velozity-project-dashboard",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "build": "npm run build:server && npm run build:client",
+    "build:server": "npm --prefix server run build",
+    "build:client": "npm --prefix client run build",
+    "lint": "npm --prefix client run lint",
+    "typecheck": "npm run typecheck:server && npm run typecheck:client",
+    "typecheck:server": "npm --prefix server run typecheck",
+    "typecheck:client": "npm --prefix client run build",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:logs": "docker compose logs -f postgres",
+    "db:migrate": "npm --prefix server run db:migrate",
+    "db:seed": "npm --prefix server run db:seed",
+    "db:flush": "npm --prefix server run db:flush",
+    "install:all": "npm install && npm --prefix server install && npm --prefix client install"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.5"
+  }
+}

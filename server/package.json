@@ -1,5 +1,14 @@
 {
   "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/app/server.ts",
+    "build": "tsc",
+    "start": "node dist/app/server.js",
+    "typecheck": "tsc --noEmit",
+    "db:migrate": "prisma migrate dev",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:flush": "tsx src/shared/utils/flushDb.ts"
+  },
   "dependencies": {
     "@prisma/client": "^6.19.3",
     "bcrypt": "^6.0.0",
@@ -25,9 +34,5 @@
     "@types/morgan": "^1.9.10",
     "@types/node": "^22.20.2",
     "tsx": "^4.23.13"
-  },
-  "scripts": {
-    "dev": "tsx watch src/app/server.ts",
-    "db:flush": "tsx src/shared/utils/flushDb.ts"
   }
 }
